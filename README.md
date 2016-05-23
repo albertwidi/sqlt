@@ -1,6 +1,6 @@
 #sqlt
 
-sqlt is a wrapper package for sqlx
+sqlt is a wrapper package for `jmoiron/sqlx`
 
 this wrapper build based on `tsenart/nap` master-slave configuration
 
@@ -10,27 +10,27 @@ to connect to database, you need an appended connection string with `;` delimete
 * the first connection will always considered as master connection
 * another connection will considered as slave
 
-```
+```go
 databaseCon := "con1;" + "con2;" + "con3"
 db, err := sqlt.Open("postgres", databaseCon)
 ```
 
 or 
 
-```
+```go
 databaseCon := "con1"
 db, err := sqlt.Open("postgres", databaseCon)
 ```
 
 for a complete sqlx features, you can use this:
 
-```
+```go
 err := db.Slave().Query(&struct, query)
 ```
 
 but if you don't want to state master or slave, you can use it like this:
 
-```
+```go
 err := db.Query(&struct, query)
 ```
 
