@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"database/sql"
+
 	"github.com/jmoiron/sqlx"
 )
 
@@ -116,6 +117,78 @@ func (db *DB) MustBegin() *sqlx.Tx {
 		panic(err)
 	}
 	return tx
+}
+
+//Preare will return sql stmt
+func (db *DB) Prepare(query string) (*Stmt, error) {
+	var err error
+	stmts := make([]*sql.Stmt, len(db.sqlxdb))
+
+	for i := range db.sqlxdb {
+		stmts[i], err = db.sqlxdb[i].Prepare(query)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &Stmt{db: db, stmts: stmts}, nil
+}
+
+//Stmt implement sql stmt
+type Stmt struct {
+	db    *DB
+	stmts []*sql.Stmt
+}
+
+//Close stmt
+func (st *Stmt) Close() error {
+	for i := range st.stmts {
+		err := st.stmts[i].Close()
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+//Exec will always go to production
+func (st *Stmt) Exec(args ...interface{}) (sql.Result, error) {
+	return st.stmts[0].Exec(args...)
+}
+
+//Query will always go to slave
+func (st *Stmt) Query(args ...interface{}) (*sql.Rows, error) {
+	return st.stmts[st.db.slave(len(st.db.sqlxdb))].Query(args...)
+}
+
+//QueryRow will always go to slave
+func (st *Stmt) QueryRow(args ...interface{}) *sql.Row {
+	return st.stmts[st.db.slave(len(st.db.sqlxdb))].QueryRow(args...)
+}
+
+//Preparex sqlx stmt
+func (db *DB) Preparex(query string) (*Stmtx, error) {
+	var err error
+	stmts := make([]*sqlx.Stmt, len(db.sqlxdb))
+
+	for i := range db.sqlxdb {
+		stmts[i], err = db.sqlxdb[i].Preparex(query)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &Stmtx{db: db, stmts: stmts}, nil
+}
+
+//Stmtx implement sqlx stmt
+type Stmtx struct {
+	db    *DB
+	stmts []*sqlx.Stmt
 }
 
 //slave

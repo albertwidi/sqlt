@@ -15,14 +15,14 @@ databaseCon := "con1;" + "con2;" + "con3"
 db, err := sqlt.Open("postgres", databaseCon)
 ```
 
-or 
+or
 
 ```go
 databaseCon := "con1"
 db, err := sqlt.Open("postgres", databaseCon)
 ```
 
-for a complete sqlx features, you can use this:
+for a complete `sqlx` features, you can use this:
 
 ```go
 err := db.Slave().Query(&struct, query)
@@ -35,9 +35,17 @@ but if you don't want to state master or slave, you can use it like this:
 err := db.Query(&struct, query)
 ```
 
-straightforward operation like this is limited and not all features are ported into `sqlt`, for example: `statements`
+straightforward operation like this is limited and not all features are ported into `sqlt`
 
 please consider to use either `db.Slave` or `db.Master` for complex operations
+
+`preapre` and `statement` for `sql` is now supported
+
+```go
+statement := db.Prepare(query)
+rows, err := statement.Query(param)
+row := statement.QueryRows(param)
+```
 
 ----------------------------------
 
