@@ -120,19 +120,23 @@ func (db *DB) MustBegin() *sqlx.Tx {
 }
 
 //Preare will return sql stmt
-func (db *DB) Prepare(query string) (*Stmt, error) {
+func (db *DB) Prepare(query string) (Stmt, error) {
 	var err error
+	stmt := Stmt{}
 	stmts := make([]*sql.Stmt, len(db.sqlxdb))
 
 	for i := range db.sqlxdb {
 		stmts[i], err = db.sqlxdb[i].Prepare(query)
 
 		if err != nil {
-			return nil, err
+			return stmt, err
 		}
 	}
 
-	return &Stmt{db: db, stmts: stmts}, nil
+	stmt.db = db
+	stmt.stmts = stmts
+	return stmt, nil
+	//return &Stmt{db: db, stmts: stmts}, nil
 }
 
 //Stmt implement sql stmt
