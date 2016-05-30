@@ -1,3 +1,5 @@
+[![GoDoc](https://godoc.org/github.com/sameervitian/sqlt?status.svg)](https://godoc.org/github.com/sameervitian/sqlt)
+
 #sqlt
 
 sqlt is a wrapper package for `jmoiron/sqlx`
