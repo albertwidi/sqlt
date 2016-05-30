@@ -1,4 +1,4 @@
-[![GoDoc](https://godoc.org/github.com/sameervitian/sqlt?status.svg)](https://godoc.org/github.com/sameervitian/sqlt)
+[![GoDoc](https://godoc.org/gopkg.in/sameervitian/sqlt.v1?status.svg)](https://godoc.org/gopkg.in/sameervitian/sqlt.v1)
 
 #sqlt
 
