@@ -106,13 +106,19 @@ func (db *DB) SetMaxOpenConnections(max int) {
 }
 
 //Slave return slave database
-func (db *DB) Slave() *sqlx.DB {
-	return db.sqlxdb[db.slave(db.length)]
+func (db *DB) Slave() *DB {
+	slavedb := &DB{sqlxdb: make([]*sqlx.DB, 1)}
+	slavedb.sqlxdb[0] = db.sqlxdb[db.slave(db.length)]
+
+	return slavedb
 }
 
 //Master return master database
-func (db *DB) Master() *sqlx.DB {
-	return db.sqlxdb[0]
+func (db *DB) Master() *DB {
+	masterdb := &DB{sqlxdb: make([]*sqlx.DB, 1)}
+	masterdb.sqlxdb[0] = db.sqlxdb[0]
+
+	return masterdb
 }
 
 // Queryx queries the database and returns an *sqlx.Rows.
