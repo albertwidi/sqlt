@@ -1,9 +1,12 @@
 package sqlt
 
 import (
+	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"database/sql"
 
@@ -14,18 +17,32 @@ import (
 type DB struct {
 	sqlxdb     []*sqlx.DB
 	driverName string
+	groupName  string
 	length     int
 	count      uint64
+	dbcount    int
+	//for stats
+	stats     []dbStatus
+	heartbeat bool
+	lastBeat  string
 }
 
-//Stmt implement sql stmt
-type Stmt struct {
-	db    *DB
-	stmts []*sql.Stmt
+type dbStatus struct {
+	Name       string      `json:"name"`
+	Connected  bool        `json:"connected"`
+	LastActive string      `json:"last_active"`
+	Error      interface{} `json:"error"`
 }
 
-//Open connection to database
-func Open(driverName, sources string) (*DB, error) {
+type statusResponse struct {
+	Dbs       interface{} `json:"db_list"`
+	Heartbeat bool        `json:"heartbeat"`
+	Lastbeat  string      `json:"last_beat"`
+}
+
+const defaultGroupName = "sqlt_open"
+
+func openConnection(driverName, sources string, groupName string) (*DB, error) {
 	var err error
 
 	conns := strings.Split(sources, ";")
@@ -36,7 +53,10 @@ func Open(driverName, sources string) (*DB, error) {
 		return nil, errors.New("No sources found")
 	}
 
-	db := &DB{sqlxdb: make([]*sqlx.DB, connsLength)}
+	db := &DB{
+		sqlxdb: make([]*sqlx.DB, connsLength),
+		stats:  make([]dbStatus, connsLength),
+	}
 	db.length = connsLength
 	db.driverName = driverName
 
@@ -46,22 +66,106 @@ func Open(driverName, sources string) (*DB, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		constatus := true
+
+		//set the name
+		name := ""
+		if i == 0 {
+			name = "master"
+		} else {
+			name = "slave-" + strconv.Itoa(i)
+		}
+
+		status := dbStatus{
+			Name:       name,
+			Connected:  constatus,
+			LastActive: time.Now().String(),
+		}
+
+		db.stats[i] = status
 	}
 
-	return db, nil
+	//set the default group name
+	db.groupName = defaultGroupName
+	if groupName != "" {
+		db.groupName = groupName
+	}
+
+	//ping database to retrieve error
+	err = db.Ping()
+
+	return db, err
+}
+
+//Open connection to database
+func Open(driverName, sources string) (*DB, error) {
+	return openConnection(driverName, sources, "")
+}
+
+//OpenWithName open the connection and set connection group name
+func OpenWithName(driverName, sources string, name string) (*DB, error) {
+	return openConnection(driverName, sources, name)
+}
+
+//GetStatus return status of database in JSON string
+func (db *DB) GetStatus() (string, error) {
+	if len(db.stats) == 0 {
+		return "", errors.New("No connection detected")
+	}
+
+	response := make(map[string]interface{})
+
+	status := statusResponse{
+		Dbs:       db.stats,
+		Heartbeat: db.heartbeat,
+		Lastbeat:  db.lastBeat,
+	}
+
+	response[db.groupName] = status
+
+	jsonByte, err := json.Marshal(response)
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(jsonByte), nil
+}
+
+//DoHeartBeat will automatically spawn a goroutines to ping your database every one second, use this carefully
+func (db *DB) DoHeartBeat() {
+	if !db.heartbeat {
+		go func() {
+			for range time.Tick(time.Second * 1) {
+				db.Ping()
+				db.lastBeat = time.Now().Format(time.RFC1123)
+			}
+		}()
+	}
+
+	db.heartbeat = true
 }
 
 //Ping database
 func (db *DB) Ping() error {
+	var err error
+
 	for i := range db.sqlxdb {
-		err := db.sqlxdb[i].Ping()
+		err = db.sqlxdb[i].Ping()
+		err = errors.New(db.stats[i].Name + ": " + err.Error())
 
 		if err != nil {
-			return err
+			db.stats[i].Connected = false
+			db.stats[i].Error = err.Error()
+		} else {
+			db.stats[i].Connected = true
+			db.stats[i].LastActive = time.Now().Format(time.RFC1123)
+			db.stats[i].Error = nil
 		}
 	}
 
-	return nil
+	return err
 }
 
 //Preare will return sql stmt
@@ -184,6 +288,12 @@ func (db *DB) MustBegin() *sqlx.Tx {
 
 /*******************************************/
 
+//Stmt implement sql stmt
+type Stmt struct {
+	db    *DB
+	stmts []*sql.Stmt
+}
+
 //Exec will always go to production
 func (st *Stmt) Exec(args ...interface{}) (sql.Result, error) {
 	return st.stmts[0].Exec(args...)
@@ -213,6 +323,12 @@ func (st *Stmt) Close() error {
 }
 
 /********************************************/
+
+//Stmtx implement sqlx stmt
+type Stmtx struct {
+	db    *DB
+	stmts []*sqlx.Stmt
+}
 
 func (st *Stmtx) Close() error {
 	for i := range st.stmts {
@@ -266,16 +382,17 @@ func (st *Stmtx) Select(dest interface{}, args ...interface{}) error {
 	return st.stmts[st.db.slave(len(st.db.sqlxdb))].Select(dest, args...)
 }
 
-//Stmtx implement sqlx stmt
-type Stmtx struct {
-	db    *DB
-	stmts []*sqlx.Stmt
-}
-
 //slave
 func (db *DB) slave(n int) int {
 	if n <= 1 {
 		return 0
 	}
-	return int(1 + (atomic.AddUint64(&db.count, 1) % uint64(n-1)))
+
+	slave := int(1 + (atomic.AddUint64(&db.count, 1) % uint64(n-1)))
+
+	if !db.stats[slave].Connected {
+		slave = 0
+	}
+
+	return slave
 }
