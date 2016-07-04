@@ -62,7 +62,6 @@ func openConnection(driverName, sources string, groupName string) (*DB, error) {
 
 	for i := range conns {
 		db.sqlxdb[i], err = sqlx.Open(driverName, conns[i])
-
 		if err != nil {
 			return nil, err
 		}
@@ -94,7 +93,6 @@ func openConnection(driverName, sources string, groupName string) (*DB, error) {
 
 	//ping database to retrieve error
 	err = db.Ping()
-
 	return db, err
 }
 
@@ -153,11 +151,11 @@ func (db *DB) Ping() error {
 
 	for i := range db.sqlxdb {
 		err = db.sqlxdb[i].Ping()
-		err = errors.New(db.stats[i].Name + ": " + err.Error())
+		name := db.stats[i].Name
 
 		if err != nil {
 			db.stats[i].Connected = false
-			db.stats[i].Error = err.Error()
+			db.stats[i].Error = errors.New(name + ": " + err.Error())
 		} else {
 			db.stats[i].Connected = true
 			db.stats[i].LastActive = time.Now().Format(time.RFC1123)
