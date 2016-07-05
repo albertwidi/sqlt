@@ -22,12 +22,12 @@ type DB struct {
 	count      uint64
 	dbcount    int
 	//for stats
-	stats     []dbStatus
+	stats     []DbStatus
 	heartbeat bool
 	lastBeat  string
 }
 
-type dbStatus struct {
+type DbStatus struct {
 	Name       string      `json:"name"`
 	Connected  bool        `json:"connected"`
 	LastActive string      `json:"last_active"`
@@ -55,7 +55,7 @@ func openConnection(driverName, sources string, groupName string) (*DB, error) {
 
 	db := &DB{
 		sqlxdb: make([]*sqlx.DB, connsLength),
-		stats:  make([]dbStatus, connsLength),
+		stats:  make([]DbStatus, connsLength),
 	}
 	db.length = connsLength
 	db.driverName = driverName
@@ -76,7 +76,7 @@ func openConnection(driverName, sources string, groupName string) (*DB, error) {
 			name = "slave-" + strconv.Itoa(i)
 		}
 
-		status := dbStatus{
+		status := DbStatus{
 			Name:       name,
 			Connected:  constatus,
 			LastActive: time.Now().String(),
@@ -106,8 +106,17 @@ func OpenWithName(driverName, sources string, name string) (*DB, error) {
 	return openConnection(driverName, sources, name)
 }
 
-//GetStatus return status of database in JSON string
-func (db *DB) GetStatus() (string, error) {
+//GetStatus return database status
+func (db *DB) GetStatus() ([]DbStatus, error) {
+	if len(db.stats) == 0 {
+		return db.stats, errors.New("No connection detected")
+	}
+
+	return db.stats, nil
+}
+
+//GetJSONStatus return status of database in JSON string
+func (db *DB) GetJSONStatus() (string, error) {
 	if len(db.stats) == 0 {
 		return "", errors.New("No connection detected")
 	}
