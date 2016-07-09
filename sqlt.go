@@ -20,7 +20,6 @@ type DB struct {
 	groupName  string
 	length     int
 	count      uint64
-	dbcount    int
 	//for stats
 	stats     []DbStatus
 	heartbeat bool
@@ -112,6 +111,11 @@ func (db *DB) GetStatus() ([]DbStatus, error) {
 		return db.stats, errors.New("No connection detected")
 	}
 
+	//if heartbeat is not enabled, ping to get status before send status
+	if !db.heartbeat {
+		db.Ping()
+	}
+
 	return db.stats, nil
 }
 
@@ -179,7 +183,7 @@ func (db *DB) Ping() error {
 func (db *DB) Prepare(query string) (Stmt, error) {
 	var err error
 	stmt := Stmt{}
-	stmts := make([]*sql.Stmt, len(db.sqlxdb))
+	stmts := make([]*sql.Stmt, db.length)
 
 	for i := range db.sqlxdb {
 		stmts[i], err = db.sqlxdb[i].Prepare(query)
@@ -197,7 +201,7 @@ func (db *DB) Prepare(query string) (Stmt, error) {
 //Preparex sqlx stmt
 func (db *DB) Preparex(query string) (*Stmtx, error) {
 	var err error
-	stmts := make([]*sqlx.Stmt, len(db.sqlxdb))
+	stmts := make([]*sqlx.Stmt, db.length)
 
 	for i := range db.sqlxdb {
 		stmts[i], err = db.sqlxdb[i].Preparex(query)
@@ -219,7 +223,7 @@ func (db *DB) SetMaxOpenConnections(max int) {
 //Slave return slave database
 func (db *DB) Slave() *DB {
 	slavedb := &DB{sqlxdb: make([]*sqlx.DB, 1)}
-	slavedb.sqlxdb[0] = db.sqlxdb[db.slave(db.length)]
+	slavedb.sqlxdb[0] = db.sqlxdb[db.slave()]
 
 	return slavedb
 }
@@ -234,25 +238,25 @@ func (db *DB) Master() *DB {
 
 // Queryx queries the database and returns an *sqlx.Rows.
 func (db *DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
-	r, err := db.sqlxdb[db.slave(db.length)].Query(query, args...)
+	r, err := db.sqlxdb[db.slave()].Query(query, args...)
 	return r, err
 }
 
 // QueryRowx queries the database and returns an *sqlx.Row.
 func (db *DB) QueryRow(query string, args ...interface{}) *sql.Row {
-	rows := db.sqlxdb[db.slave(db.length)].QueryRow(query, args...)
+	rows := db.sqlxdb[db.slave()].QueryRow(query, args...)
 	return rows
 }
 
 // Queryx queries the database and returns an *sqlx.Rows.
 func (db *DB) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
-	r, err := db.sqlxdb[db.slave(db.length)].Queryx(query, args...)
+	r, err := db.sqlxdb[db.slave()].Queryx(query, args...)
 	return r, err
 }
 
 // QueryRowx queries the database and returns an *sqlx.Row.
 func (db *DB) QueryRowx(query string, args ...interface{}) *sqlx.Row {
-	rows := db.sqlxdb[db.slave(db.length)].QueryRowx(query, args...)
+	rows := db.sqlxdb[db.slave()].QueryRowx(query, args...)
 	return rows
 }
 
@@ -268,12 +272,12 @@ func (db *DB) MustExec(query string, args ...interface{}) sql.Result {
 
 // Select using this DB.
 func (db *DB) Select(dest interface{}, query string, args ...interface{}) error {
-	return db.sqlxdb[db.slave(db.length)].Select(dest, query, args...)
+	return db.sqlxdb[db.slave()].Select(dest, query, args...)
 }
 
 // Get using this DB.
 func (db *DB) Get(dest interface{}, query string, args ...interface{}) error {
-	return db.sqlxdb[db.slave(db.length)].Get(dest, query, args...)
+	return db.sqlxdb[db.slave()].Get(dest, query, args...)
 }
 
 //Using master db
@@ -308,12 +312,12 @@ func (st *Stmt) Exec(args ...interface{}) (sql.Result, error) {
 
 //Query will always go to slave
 func (st *Stmt) Query(args ...interface{}) (*sql.Rows, error) {
-	return st.stmts[st.db.slave(len(st.db.sqlxdb))].Query(args...)
+	return st.stmts[st.db.slave()].Query(args...)
 }
 
 //QueryRow will always go to slave
 func (st *Stmt) QueryRow(args ...interface{}) *sql.Row {
-	return st.stmts[st.db.slave(len(st.db.sqlxdb))].QueryRow(args...)
+	return st.stmts[st.db.slave()].QueryRow(args...)
 }
 
 //Close stmt
@@ -357,12 +361,12 @@ func (st *Stmtx) Exec(args ...interface{}) (sql.Result, error) {
 
 //Query will always go to slave
 func (st *Stmtx) Query(args ...interface{}) (*sql.Rows, error) {
-	return st.stmts[st.db.slave(len(st.db.sqlxdb))].Query(args...)
+	return st.stmts[st.db.slave()].Query(args...)
 }
 
 //QueryRow will always go to slave
 func (st *Stmtx) QueryRow(args ...interface{}) *sql.Row {
-	return st.stmts[st.db.slave(len(st.db.sqlxdb))].QueryRow(args...)
+	return st.stmts[st.db.slave()].QueryRow(args...)
 }
 
 func (st *Stmtx) MustExec(args ...interface{}) sql.Result {
@@ -371,31 +375,31 @@ func (st *Stmtx) MustExec(args ...interface{}) sql.Result {
 
 //Query will always go to slave
 func (st *Stmtx) Queryx(args ...interface{}) (*sqlx.Rows, error) {
-	return st.stmts[st.db.slave(len(st.db.sqlxdb))].Queryx(args...)
+	return st.stmts[st.db.slave()].Queryx(args...)
 }
 
 //QueryRow will always go to slave
 func (st *Stmtx) QueryRowx(args ...interface{}) *sqlx.Row {
-	return st.stmts[st.db.slave(len(st.db.sqlxdb))].QueryRowx(args...)
+	return st.stmts[st.db.slave()].QueryRowx(args...)
 }
 
 //Query will always go to slave
 func (st *Stmtx) Get(dest interface{}, args ...interface{}) error {
-	return st.stmts[st.db.slave(len(st.db.sqlxdb))].Get(dest, args...)
+	return st.stmts[st.db.slave()].Get(dest, args...)
 }
 
 //QueryRow will always go to slave
 func (st *Stmtx) Select(dest interface{}, args ...interface{}) error {
-	return st.stmts[st.db.slave(len(st.db.sqlxdb))].Select(dest, args...)
+	return st.stmts[st.db.slave()].Select(dest, args...)
 }
 
 //slave
-func (db *DB) slave(n int) int {
-	if n <= 1 {
+func (db *DB) slave() int {
+	if db.length <= 1 {
 		return 0
 	}
 
-	slave := int(1 + (atomic.AddUint64(&db.count, 1) % uint64(n-1)))
+	slave := int(1 + (atomic.AddUint64(&db.count, 1) % uint64(db.length-1)))
 
 	if !db.stats[slave].Connected {
 		slave = 0
