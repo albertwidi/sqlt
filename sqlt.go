@@ -16,6 +16,8 @@ import (
 //DB struct wrapper for sqlx connection
 type DB struct {
 	sqlxdb     []*sqlx.DB
+	activedb   []int
+	inactivedb []int
 	driverName string
 	groupName  string
 	length     int
@@ -62,6 +64,7 @@ func openConnection(driverName, sources string, groupName string) (*DB, error) {
 	for i := range conns {
 		db.sqlxdb[i], err = sqlx.Open(driverName, conns[i])
 		if err != nil {
+			db.inactivedb = append(db.inactivedb, i)
 			return nil, err
 		}
 
@@ -82,6 +85,7 @@ func openConnection(driverName, sources string, groupName string) (*DB, error) {
 		}
 
 		db.stats[i] = status
+		db.activedb = append(db.activedb, i)
 	}
 
 	//set the default group name
@@ -162,17 +166,37 @@ func (db *DB) DoHeartBeat() {
 func (db *DB) Ping() error {
 	var err error
 
-	for i := range db.sqlxdb {
-		err = db.sqlxdb[i].Ping()
-		name := db.stats[i].Name
+	for i, val := range db.activedb {
+		err = db.sqlxdb[val].Ping()
+		name := db.stats[val].Name
 
 		if err != nil {
-			db.stats[i].Connected = false
-			db.stats[i].Error = errors.New(name + ": " + err.Error())
+			db.stats[val].Connected = false
+			db.activedb = append(db.activedb[:i], db.activedb[i+1:]...)
+			db.inactivedb = append(db.inactivedb, val)
+			db.stats[val].Error = errors.New(name + ": " + err.Error())
+			db.length--
 		} else {
-			db.stats[i].Connected = true
-			db.stats[i].LastActive = time.Now().Format(time.RFC1123)
-			db.stats[i].Error = nil
+			db.stats[val].Connected = true
+			db.stats[val].LastActive = time.Now().Format(time.RFC1123)
+			db.stats[val].Error = nil
+		}
+	}
+
+	for i, val := range db.inactivedb {
+		err = db.sqlxdb[val].Ping()
+		name := db.stats[val].Name
+
+		if err != nil {
+			db.stats[val].Connected = false
+			db.stats[val].Error = errors.New(name + ": " + err.Error())
+		} else {
+			db.stats[val].Connected = true
+			db.inactivedb = append(db.inactivedb[:i], db.inactivedb[i+1:]...)
+			db.activedb = append(db.activedb, val)
+			db.stats[val].LastActive = time.Now().Format(time.RFC1123)
+			db.stats[val].Error = nil
+			db.length++
 		}
 	}
 
@@ -401,9 +425,5 @@ func (db *DB) slave() int {
 
 	slave := int(1 + (atomic.AddUint64(&db.count, 1) % uint64(db.length-1)))
 
-	if !db.stats[slave].Connected {
-		slave = 0
-	}
-
-	return slave
+	return db.activedb[slave]
 }
