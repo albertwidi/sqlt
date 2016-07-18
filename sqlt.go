@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -42,6 +43,8 @@ type statusResponse struct {
 }
 
 const defaultGroupName = "sqlt_open"
+
+var dbLengthMutex = &sync.Mutex{}
 
 func openConnection(driverName, sources string, groupName string) (*DB, error) {
 	var err error
@@ -175,11 +178,11 @@ func (db *DB) Ping() error {
 			db.activedb = append(db.activedb[:i], db.activedb[i+1:]...)
 			db.inactivedb = append(db.inactivedb, val)
 			db.stats[val].Error = errors.New(name + ": " + err.Error())
+			dbLengthMutex.Lock()
 			db.length--
+			dbLengthMutex.Unlock()
 		} else {
-			db.stats[val].Connected = true
 			db.stats[val].LastActive = time.Now().Format(time.RFC1123)
-			db.stats[val].Error = nil
 		}
 	}
 
@@ -188,7 +191,6 @@ func (db *DB) Ping() error {
 		name := db.stats[val].Name
 
 		if err != nil {
-			db.stats[val].Connected = false
 			db.stats[val].Error = errors.New(name + ": " + err.Error())
 		} else {
 			db.stats[val].Connected = true
@@ -196,7 +198,9 @@ func (db *DB) Ping() error {
 			db.activedb = append(db.activedb, val)
 			db.stats[val].LastActive = time.Now().Format(time.RFC1123)
 			db.stats[val].Error = nil
+			dbLengthMutex.Lock()
 			db.length++
+			dbLengthMutex.Unlock()
 		}
 	}
 
