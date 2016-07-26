@@ -59,7 +59,7 @@ row := statement.QueryRows(param)
 Heartbeat/Watcher
 ------
 
-Use `DoHeartbea` to auto-reconnect/watch your database connection.
+Use `DoHeartbeat` to auto-reconnect/watch your database connection.
 
 ```go
 databaseCon := "con1;" + "con2;" + "con3"
