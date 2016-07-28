@@ -115,8 +115,6 @@ JSON output:
       "error": null
       }
     ],
-    "heartbeat": true,
-    "last_beat": "Mon, 04 Jul 2016 11:25:14 WIB"
   }
 }
 ```
