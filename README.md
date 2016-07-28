@@ -87,7 +87,7 @@ if err != nil {
 db.DoHeartBeat()
 
 //this will return database status in JSON
-status, _ := db.GetStatus()
+status, _ := db.GetJSONStatus()
 ```
 
 JSON output:
