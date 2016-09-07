@@ -3,7 +3,6 @@ package sqlt
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,6 +29,7 @@ type DB struct {
 	lastBeat  string
 }
 
+//DbStatus for status response
 type DbStatus struct {
 	Name       string      `json:"name"`
 	Connected  bool        `json:"connected"`
@@ -183,7 +183,6 @@ func (db *DB) Ping() error {
 
 		if err != nil {
 			if db.length <= 1 {
-				log.Println("[SQLT] No DB Connection")
 				return err
 			}
 
@@ -226,7 +225,7 @@ func (db *DB) Ping() error {
 	return err
 }
 
-//Preare will return sql stmt
+//Prepare return sql stmt
 func (db *DB) Prepare(query string) (Stmt, error) {
 	var err error
 	stmt := Stmt{}
@@ -240,22 +239,6 @@ func (db *DB) Prepare(query string) (Stmt, error) {
 		}
 	}
 
-	stmt.db = db
-	stmt.stmts = stmts
-	return stmt, nil
-}
-
-//Persistently prepare sql stmt, ignoring errors
-func (db *DB) PersistentPrepare(query string) (Stmt, error) {
-	var err error
-	stmt := Stmt{}
-	stmts := make([]*sql.Stmt, len(db.sqlxdb))
-	for i := range db.sqlxdb {
-		stmts[i], err = db.sqlxdb[i].Prepare(query)
-		if err != nil {
-			log.Println("[SQLT] prepare error ", err)
-		}
-	}
 	stmt.db = db
 	stmt.stmts = stmts
 	return stmt, nil
@@ -277,19 +260,7 @@ func (db *DB) Preparex(query string) (*Stmtx, error) {
 	return &Stmtx{db: db, stmts: stmts}, nil
 }
 
-//Persistently prepare sqlx stmt, ignoring errors
-func (db *DB) PersistentPreparex(query string) (*Stmtx, error) {
-	var err error
-	stmts := make([]*sqlx.Stmt, len(db.sqlxdb))
-	for i := range db.sqlxdb {
-		stmts[i], err = db.sqlxdb[i].Preparex(query)
-		if err != nil {
-			log.Println("[SQLT] preparex error ", err)
-		}
-	}
-	return &Stmtx{db: db, stmts: stmts}, nil
-}
-
+//SetMaxOpenConnections to set max connections
 func (db *DB) SetMaxOpenConnections(max int) {
 	for i := range db.sqlxdb {
 		db.sqlxdb[i].SetMaxOpenConns(max)
@@ -332,19 +303,19 @@ func (db *DB) PersistentQuery(query string, args ...interface{}) (*sql.Rows, err
 	return r, err
 }
 
-// QueryRowx queries the database and returns an *sqlx.Row.
+//QueryRow queries the database and returns an *sqlx.Row.
 func (db *DB) QueryRow(query string, args ...interface{}) *sql.Row {
 	rows := db.sqlxdb[db.slave()].QueryRow(query, args...)
 	return rows
 }
 
-// Queryx queries the database and returns an *sqlx.Rows.
+//Queryx queries the database and returns an *sqlx.Rows.
 func (db *DB) Queryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 	r, err := db.sqlxdb[db.slave()].Queryx(query, args...)
 	return r, err
 }
 
-// PersistentQueryx queries the database persistently and returns an *sqlx.Rows. (persistently)
+//PersistentQueryx queries the database persistently and returns an *sqlx.Rows. (persistently)
 func (db *DB) PersistentQueryx(query string, args ...interface{}) (*sqlx.Rows, error) {
 	r, err := db.sqlxdb[db.slave()].Queryx(query, args...)
 	if err != nil {
@@ -364,12 +335,12 @@ func (db *DB) QueryRowx(query string, args ...interface{}) *sqlx.Row {
 	return rows
 }
 
+//Exec using master db
 func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
 	return db.sqlxdb[0].Exec(query, args...)
 }
 
-//Using master db
-// MustExec (panic) runs MustExec using this database.
+// MustExec (panic) runs MustExec using master database.
 func (db *DB) MustExec(query string, args ...interface{}) sql.Result {
 	return db.sqlxdb[0].MustExec(query, args...)
 }
@@ -379,7 +350,7 @@ func (db *DB) Select(dest interface{}, query string, args ...interface{}) error 
 	return db.sqlxdb[db.slave()].Select(dest, query, args...)
 }
 
-// Select using this DB persistently.
+//PersistentSelect using this DB persistently.
 func (db *DB) PersistentSelect(dest interface{}, query string, args ...interface{}) error {
 	err := db.sqlxdb[db.slave()].Select(dest, query, args...)
 	if err != nil {
@@ -390,16 +361,15 @@ func (db *DB) PersistentSelect(dest interface{}, query string, args ...interface
 			}
 		}
 	}
-
 	return err
 }
 
-// Get using this DB.
+//Get using slave.
 func (db *DB) Get(dest interface{}, query string, args ...interface{}) error {
 	return db.sqlxdb[db.slave()].Get(dest, query, args...)
 }
 
-// Get using this DB persistently.
+//PersistentGet using slave DB persistently.
 func (db *DB) PersistentGet(dest interface{}, query string, args ...interface{}) error {
 	err := db.sqlxdb[db.slave()].Get(dest, query, args...)
 	if err != nil {
@@ -414,15 +384,13 @@ func (db *DB) PersistentGet(dest interface{}, query string, args ...interface{})
 	return err
 }
 
-//Using master db
-// NamedExec using this DB.
+// NamedExec using master db.
 func (db *DB) NamedExec(query string, arg interface{}) (sql.Result, error) {
 	return db.sqlxdb[0].NamedExec(query, arg)
 }
 
-//Using master db
-// MustBegin starts a transaction, and panics on error.  Returns an *sqlx.Tx instead
-// of an *sql.Tx.
+//MustBegin starts a transaction, and panics on error.  Returns an *sqlx.Tx instead
+//of an *sql.Tx.
 func (db *DB) MustBegin() *sqlx.Tx {
 	tx, err := db.sqlxdb[0].Beginx()
 	if err != nil {
@@ -449,7 +417,12 @@ func (st *Stmt) Query(args ...interface{}) (*sql.Rows, error) {
 	return st.stmts[st.db.slave()].Query(args...)
 }
 
-//Query will always go to slave persistently
+//QueryMaster will use master db
+func (st *Stmt) QueryMaster(args ...interface{}) (*sql.Rows, error) {
+	return st.stmts[0].Query(args...)
+}
+
+//PersistentQuery will always go to slave persistently
 func (st *Stmt) PersistentQuery(args ...interface{}) (*sql.Rows, error) {
 	r, err := st.stmts[st.db.slave()].Query(args...)
 	if err != nil {
@@ -468,6 +441,11 @@ func (st *Stmt) QueryRow(args ...interface{}) *sql.Row {
 	return st.stmts[st.db.slave()].QueryRow(args...)
 }
 
+//QueryRowMaster will use master db
+func (st *Stmt) QueryRowMaster(args ...interface{}) *sql.Row {
+	return st.stmts[0].QueryRow(args...)
+}
+
 //Close stmt
 func (st *Stmt) Close() error {
 	for i := range st.stmts {
@@ -477,7 +455,6 @@ func (st *Stmt) Close() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -489,6 +466,7 @@ type Stmtx struct {
 	stmts []*sqlx.Stmt
 }
 
+//Close all dbs connection
 func (st *Stmtx) Close() error {
 	for i := range st.stmts {
 		err := st.stmts[i].Close()
@@ -497,7 +475,6 @@ func (st *Stmtx) Close() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -512,7 +489,12 @@ func (st *Stmtx) Query(args ...interface{}) (*sql.Rows, error) {
 	return st.stmts[st.db.slave()].Query(args...)
 }
 
-//Query will always go to slave persistently
+//QueryMaster will use master db
+func (st *Stmtx) QueryMaster(args ...interface{}) (*sql.Rows, error) {
+	return st.stmts[0].Query(args...)
+}
+
+//PersistentQuery will always go to slave persistently
 func (st *Stmtx) PersistentQuery(args ...interface{}) (*sql.Rows, error) {
 	r, err := st.stmts[st.db.slave()].Query(args...)
 	if err != nil {
@@ -531,16 +513,22 @@ func (st *Stmtx) QueryRow(args ...interface{}) *sql.Row {
 	return st.stmts[st.db.slave()].QueryRow(args...)
 }
 
+//QueryRowMaster will use master db
+func (st *Stmtx) QueryRowMaster(args ...interface{}) *sql.Row {
+	return st.stmts[0].QueryRow(args...)
+}
+
+//MustExec using master database
 func (st *Stmtx) MustExec(args ...interface{}) sql.Result {
 	return st.stmts[0].MustExec(args...)
 }
 
-//Query will always go to slave
+//Queryx will always go to slave
 func (st *Stmtx) Queryx(args ...interface{}) (*sqlx.Rows, error) {
 	return st.stmts[st.db.slave()].Queryx(args...)
 }
 
-//Query will always go to slave persistently
+//PersistentQueryx will always go to slave persistently
 func (st *Stmtx) PersistentQueryx(args ...interface{}) (*sqlx.Rows, error) {
 	r, err := st.stmts[st.db.slave()].Queryx(args...)
 	if err != nil {
@@ -554,17 +542,17 @@ func (st *Stmtx) PersistentQueryx(args ...interface{}) (*sqlx.Rows, error) {
 	return r, err
 }
 
-//QueryRow will always go to slave
+//QueryRowx will always go to slave
 func (st *Stmtx) QueryRowx(args ...interface{}) *sqlx.Row {
 	return st.stmts[st.db.slave()].QueryRowx(args...)
 }
 
-//Query will always go to slave
+//Get will always go to slave
 func (st *Stmtx) Get(dest interface{}, args ...interface{}) error {
 	return st.stmts[st.db.slave()].Get(dest, args...)
 }
 
-//Query will always go to slave persistently
+//PersistentGet will always go to slave persistently
 func (st *Stmtx) PersistentGet(dest interface{}, args ...interface{}) error {
 	err := st.stmts[st.db.slave()].Get(dest, args...)
 	if err != nil {
@@ -575,16 +563,15 @@ func (st *Stmtx) PersistentGet(dest interface{}, args ...interface{}) error {
 			}
 		}
 	}
-
 	return err
 }
 
-//QueryRow will always go to slave
+//Select will always go to slave
 func (st *Stmtx) Select(dest interface{}, args ...interface{}) error {
 	return st.stmts[st.db.slave()].Select(dest, args...)
 }
 
-//QueryRow will always go to slave persistently
+//PersistentSelect will always go to slave persistently
 func (st *Stmtx) PersistentSelect(dest interface{}, args ...interface{}) error {
 	err := st.stmts[st.db.slave()].Select(dest, args...)
 	if err != nil {
@@ -595,7 +582,6 @@ func (st *Stmtx) PersistentSelect(dest interface{}, args ...interface{}) error {
 			}
 		}
 	}
-
 	return err
 }
 
@@ -609,7 +595,7 @@ func (db *DB) slave() int {
 	return db.activedb[slave]
 }
 
-//set max retry attempt for persistent functions, default : 1
+//SetMaxRetry attempt for persistent functions, default : 1
 func SetMaxRetry(max int) {
 	maxRetry = max
 }
