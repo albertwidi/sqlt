@@ -2,42 +2,47 @@
 
 #sqlt
 
-sqlt is a wrapper package for `jmoiron/sqlx`
+Sqlt is a wrapper package for `jmoiron/sqlx`
 
-this wrapper build based on `tsenart/nap` master-slave configuration with some modification
+This wrapper build based on `tsenart/nap` master-slave and its `load-balancing` configuration with some modification
 
-since this package is just a wrapper, you can use it 100% like `sqlx`, but with some differences
+Since this package is just a wrapper, you can use it 100% like `sqlx`, but with some differences
 
 Usage
 ------
 
-to connect to database, you need an appended connection string with `;` delimeter, but there is some notes:
-* the first connection will always be considered as `master` connection
-* another connection will be considered as `slave`
+To connect to database, you need an appended connection string with `;` delimeter, but there is some notes:
+* First connection will always be considered as `master` connection
+* Another connection will be considered as `slave`
 
 ```go
 databaseCon := "con1;" + "con2;" + "con3"
 db, err := sqlt.Open("postgres", databaseCon)
 ```
 
-or
+Or
 
 ```go
 databaseCon := "con1"
 db, err := sqlt.Open("postgres", databaseCon)
 ```
 
-for a complete `sqlx` features, you can use this:
+Query Example:
 
 ```go
-err := db.Slave().Query(&struct, query)
-err := db.Master().Query(&struct, query)
+row := db.QuerRowy(query, args)
 ```
 
-but if you don't want to state master or slave, you can use it like this:
+```go
+rows, err := db.Query(query, args)
+```
 
 ```go
-err := db.Query(&struct, query)
+err := db.Select(&struct, query, args)
+```
+
+```go
+err := db.Get(&struct, query, args)
 ```
 
 `preapre` and `preparex` for `sql` and `sqlx` are supported
@@ -59,7 +64,11 @@ row := statement.QueryRows(param)
 Heartbeat/Watcher
 ------
 
-Use `DoHeartbeat` to auto-reconnect/watch your database connection.
+SQLT provide a mechanism to switch between slaves if something bad happen. If no slaves is available then all connection will go to master.
+
+The watcher will auto-reconnect to your slaves if possible and start to `load-balancing` itself.
+
+To watch all slaves connection, use `DoHeartbeat`. This will ping your database every second and make auto-reconnect if needed.
 
 ```go
 databaseCon := "con1;" + "con2;" + "con3"
@@ -73,7 +82,10 @@ if err != nil {
 db.DoHeartBeat()
 ```
 
-You can also get the database status in JSON, for example:
+Database status
+------
+
+You can also get the database status, for example:
 
 ```go
 databaseCon := "con1;" + "con2;" + "con3"
@@ -90,34 +102,14 @@ db.DoHeartBeat()
 status, _ := db.GetStatus()
 ```
 
-JSON output:
+Output:
 
-```json
-{
-  "order": {
-    "db_list": [
-      {
-      "name": "master",
-      "connected": true,
-      "last_active": "Mon, 04 Jul 2016 11:25:14 WIB",
-      "error": null
-      },
-      {
-      "name": "slave-1",
-      "connected": true,
-      "last_active": "Mon, 04 Jul 2016 11:25:14 WIB",
-      "error": null
-      },
-      {
-      "name": "slave-2",
-      "connected": true,
-      "last_active": "Mon, 04 Jul 2016 11:25:14 WIB",
-      "error": null
-      }
-    ],
-    "heartbeat": true,
-    "last_beat": "Mon, 04 Jul 2016 11:25:14 WIB"
-  }
+```go
+DbStatus {
+  Name:       "order",
+  Connected:  true,
+  LastActive: "21 September 2016",
+  Error:      nil,
 }
 ```
 

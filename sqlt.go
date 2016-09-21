@@ -1,15 +1,13 @@
 package sqlt
 
 import (
-	"encoding/json"
+	"database/sql"
 	"errors"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"database/sql"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -131,31 +129,6 @@ func (db *DB) GetStatus() ([]DbStatus, error) {
 	}
 
 	return db.stats, nil
-}
-
-//GetJSONStatus return status of database in JSON string
-func (db *DB) GetJSONStatus() (string, error) {
-	if len(db.stats) == 0 {
-		return "", errors.New("No connection detected")
-	}
-
-	response := make(map[string]interface{})
-
-	status := statusResponse{
-		Dbs:       db.stats,
-		Heartbeat: db.heartbeat,
-		Lastbeat:  db.lastBeat,
-	}
-
-	response[db.groupName] = status
-
-	jsonByte, err := json.Marshal(response)
-
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonByte), nil
 }
 
 //DoHeartBeat will automatically spawn a goroutines to ping your database every one second, use this carefully
@@ -345,9 +318,14 @@ func (db *DB) MustExec(query string, args ...interface{}) sql.Result {
 	return db.sqlxdb[0].MustExec(query, args...)
 }
 
-// Select using this DB.
+//Select using slave db.
 func (db *DB) Select(dest interface{}, query string, args ...interface{}) error {
 	return db.sqlxdb[db.slave()].Select(dest, query, args...)
+}
+
+//SelectMaster using master db
+func (db *DB) SelectMaster(dest interface{}, query string, args ...interface{}) error {
+	return db.sqlxdb[0].Select(dest, query, args...)
 }
 
 //PersistentSelect using this DB persistently.
@@ -367,6 +345,11 @@ func (db *DB) PersistentSelect(dest interface{}, query string, args ...interface
 //Get using slave.
 func (db *DB) Get(dest interface{}, query string, args ...interface{}) error {
 	return db.sqlxdb[db.slave()].Get(dest, query, args...)
+}
+
+//GetMaster using master DB
+func (db *DB) GetMaster(dest interface{}, query string, args ...interface{}) error {
+	return db.sqlxdb[0].Get(dest, query, args...)
 }
 
 //PersistentGet using slave DB persistently.
@@ -552,6 +535,11 @@ func (st *Stmtx) Get(dest interface{}, args ...interface{}) error {
 	return st.stmts[st.db.slave()].Get(dest, args...)
 }
 
+//GetMaster will always go to master
+func (st *Stmtx) GetMaster(dest interface{}, args ...interface{}) error {
+	return st.stmts[0].Get(dest, args...)
+}
+
 //PersistentGet will always go to slave persistently
 func (st *Stmtx) PersistentGet(dest interface{}, args ...interface{}) error {
 	err := st.stmts[st.db.slave()].Get(dest, args...)
@@ -569,6 +557,11 @@ func (st *Stmtx) PersistentGet(dest interface{}, args ...interface{}) error {
 //Select will always go to slave
 func (st *Stmtx) Select(dest interface{}, args ...interface{}) error {
 	return st.stmts[st.db.slave()].Select(dest, args...)
+}
+
+//SelectMaster will always go to master
+func (st *Stmtx) SelectMaster(dest interface{}, args ...interface{}) error {
+	return st.stmts[0].Select(dest, args...)
 }
 
 //PersistentSelect will always go to slave persistently
