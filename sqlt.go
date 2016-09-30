@@ -240,20 +240,23 @@ func (db *DB) SetMaxOpenConnections(max int) {
 	}
 }
 
-//Slave return slave database
-func (db *DB) Slave() *DB {
-	slavedb := &DB{sqlxdb: make([]*sqlx.DB, 1)}
-	slavedb.sqlxdb[0] = db.sqlxdb[db.slave()]
+// SetConnMaxLifetime sets the maximum amount of time a connection may be reused.
+// Expired connections may be closed lazily before reuse.
+// If d <= 0, connections are reused forever.
+func (db *DB) SetConnMaxLifetime(d time.Duration) {
+	for i := range db.sqlxdb {
+		db.sqlxdb[i].SetConnMaxLifetime(d)
+	}
+}
 
-	return slavedb
+//Slave return slave database
+func (db *DB) Slave() *sqlx.DB {
+	return db.sqlxdb[db.slave()]
 }
 
 //Master return master database
-func (db *DB) Master() *DB {
-	masterdb := &DB{sqlxdb: make([]*sqlx.DB, 1)}
-	masterdb.sqlxdb[0] = db.sqlxdb[0]
-
-	return masterdb
+func (db *DB) Master() *sqlx.DB {
+	return db.sqlxdb[0]
 }
 
 // Query queries the database and returns an *sql.Rows.
@@ -323,11 +326,6 @@ func (db *DB) Select(dest interface{}, query string, args ...interface{}) error 
 	return db.sqlxdb[db.slave()].Select(dest, query, args...)
 }
 
-//SelectMaster using master db
-func (db *DB) SelectMaster(dest interface{}, query string, args ...interface{}) error {
-	return db.sqlxdb[0].Select(dest, query, args...)
-}
-
 //PersistentSelect using this DB persistently.
 func (db *DB) PersistentSelect(dest interface{}, query string, args ...interface{}) error {
 	err := db.sqlxdb[db.slave()].Select(dest, query, args...)
@@ -345,11 +343,6 @@ func (db *DB) PersistentSelect(dest interface{}, query string, args ...interface
 //Get using slave.
 func (db *DB) Get(dest interface{}, query string, args ...interface{}) error {
 	return db.sqlxdb[db.slave()].Get(dest, query, args...)
-}
-
-//GetMaster using master DB
-func (db *DB) GetMaster(dest interface{}, query string, args ...interface{}) error {
-	return db.sqlxdb[0].Get(dest, query, args...)
 }
 
 //PersistentGet using slave DB persistently.
