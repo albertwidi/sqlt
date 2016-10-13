@@ -12,6 +12,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+var (
+	ErrNoConnectionDetected = errors.New("No connection detected")
+)
+
 //DB struct wrapper for sqlx connection
 type DB struct {
 	sqlxdb     []*sqlx.DB
@@ -120,7 +124,7 @@ func OpenWithName(driverName, sources string, name string) (*DB, error) {
 //GetStatus return database status
 func (db *DB) GetStatus() ([]DbStatus, error) {
 	if len(db.stats) == 0 {
-		return db.stats, errors.New("No connection detected")
+		return db.stats, ErrNoConnectionDetected
 	}
 
 	//if heartbeat is not enabled, ping to get status before send status
@@ -373,6 +377,15 @@ func (db *DB) MustBegin() *sqlx.Tx {
 		panic(err)
 	}
 	return tx
+}
+
+// Sqlx Rebind
+func (db *DB) Rebind(query string) string {
+	return db.sqlxdb[db.slave()].Rebind(query)
+}
+
+func (db *DB) RebindMaster(query string) string {
+	return db.sqlxdb[0].Rebind(query)
 }
 
 /*******************************************/
