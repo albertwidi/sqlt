@@ -1,4 +1,4 @@
-[![GoDoc](https://godoc.org/gopkg.in/sameervitian/sqlt.v1?status.svg)](https://godoc.org/gopkg.in/sameervitian/sqlt.v1)
+[![GoDoc](https://godoc.org/github.com/albert-widi/sqlt?status.svg)](https://godoc.org/github.com/albert-widi/sqlt)
 
 #sqlt
 
@@ -6,7 +6,7 @@ Sqlt is a wrapper package for `jmoiron/sqlx`
 
 This wrapper build based on `tsenart/nap` master-slave and its `load-balancing` configuration with some modification
 
-Since this package is just a wrapper, you can use it 100% like `sqlx`, but with some differences
+Since this package is just a wrapper, you can use it 100% like `nap` but with the taste of `sqlx`
 
 Usage
 ------
@@ -47,18 +47,47 @@ err := db.Get(&struct, query, args)
 
 `preapre` and `preparex` for `sql` and `sqlx` are supported
 
-use `preparex` to enable `scanStruct`
+use `preparex` to enable `ScanStruct`
 
 ```go
 statement := db.Prepare(query)
 rows, err := statement.Query(param)
-row := statement.QueryRows(param)
+row := statement.QueryRows(param).Scan(&var)
 ```
 
 ```go
 statement := db.Preparex(query)
 rows, err := statement.Query(param)
-row := statement.QueryRows(param)
+row := statement.QueryRows(param).ScanStruct(&struct)
+```
+
+Complete example:
+
+```go
+package main
+
+// lib/pq or go-sql-driver needed to import database driver
+import (
+    _"github.com/lib/pq"
+    _ "github.com/go-sql-driver/mysql"
+    "github.com/albert-widi/sqlt"
+    "log"
+)
+
+func main() {
+    masterDSN := "user:password@tcp(master_ip:master_port)/database_name"
+    slave1DSN := "user:password@tcp(slave_ip:slave_port)/database_name"
+    slave2DSN := "user:password@tcp(slave2_ip:slave2_port)/database_name"
+
+    dsn := masterDSN + ";" + slave1DSN + ";" + slave2DSN
+    
+    db, err = sqlt.Open("mysql", dsn)
+    if err != nil {
+      log.Println("Error ", err.Error())
+    }
+    
+    // do something using db connection
+}
 ```
 
 Heartbeat/Watcher
