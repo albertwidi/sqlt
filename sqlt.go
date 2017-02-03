@@ -369,6 +369,15 @@ func (db *DB) NamedExec(query string, arg interface{}) (sql.Result, error) {
 	return db.sqlxdb[0].NamedExec(query, arg)
 }
 
+// Transaction
+func (db *DB) Begin() (*sql.Tx, error) {
+	return db.sqlxdb[0].Begin()
+}
+
+func (db *DB) Beginx() (*sqlx.Tx, error) {
+	return db.sqlxdb[0].Beginx()
+}
+
 //MustBegin starts a transaction, and panics on error.  Returns an *sqlx.Tx instead
 //of an *sql.Tx.
 func (db *DB) MustBegin() *sqlx.Tx {
