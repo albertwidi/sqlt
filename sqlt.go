@@ -598,3 +598,13 @@ func (db *DB) slave() int {
 func SetMaxRetry(max int) {
 	maxRetry = max
 }
+
+//InitMocking initialize the dbconnection mocking
+func (db *DB) InitMocking(dbConn *sql.DB, slaveAmount int) {
+	var sqlxDB []*sqlx.DB
+
+	for i := 0; i <= slaveAmount; i++ {
+		sqlxDB = append(sqlxDB, sqlx.NewDb(dbConn, "postgres"))
+	}
+	db.sqlxdb = sqlxDB
+}
