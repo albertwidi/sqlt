@@ -3,6 +3,7 @@ package sqlt
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -600,11 +601,30 @@ func SetMaxRetry(max int) {
 }
 
 //InitMocking initialize the dbconnection mocking
-func (db *DB) InitMocking(dbConn *sql.DB, slaveAmount int) {
-	var sqlxDB []*sqlx.DB
+func InitMocking(dbConn *sql.DB, slaveAmount int) *DB {
+
+	db := &DB{
+		sqlxdb: make([]*sqlx.DB, slaveAmount+1),
+		stats:  make([]DbStatus, slaveAmount+1),
+	}
 
 	for i := 0; i <= slaveAmount; i++ {
-		sqlxDB = append(sqlxDB, sqlx.NewDb(dbConn, "postgres"))
+		db.sqlxdb[i] = sqlx.NewDb(dbConn, "postgres")
+		name := fmt.Sprintf("slave-%d", i)
+		if i == 0 {
+			name = "master"
+		}
+
+		db.stats[i] = DbStatus{
+			Name:       name,
+			Connected:  true,
+			LastActive: time.Now().String(),
+		}
+		db.activedb = append(db.activedb, i)
 	}
-	db.sqlxdb = sqlxDB
+
+	db.driverName = "postgres"
+	db.groupName = "sqlt-open"
+	db.length = len(db.sqlxdb)
+	return db
 }
