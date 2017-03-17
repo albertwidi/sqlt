@@ -595,12 +595,16 @@ func (st *Stmtx) PersistentSelect(dest interface{}, args ...interface{}) error {
 
 //slave
 func (db *DB) slave() int {
+	dbLengthMutex.Lock()
 	if db.length <= 1 {
 		return 0
 	}
 
 	slave := int(1 + (atomic.AddUint64(&db.count, 1) % uint64(db.length-1)))
-	return db.activedb[slave]
+	active := db.activedb[slave]
+	dbLengthMutex.Unlock()
+
+	return active
 }
 
 //SetMaxRetry attempt for persistent functions, default : 1
