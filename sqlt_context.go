@@ -17,7 +17,7 @@ func openContextConnection(ctx context.Context, driverName, sources string, grou
 	conns := strings.Split(sources, ";")
 	connsLength := len(conns)
 
-	//check if no source is available
+	// check if no source is available
 	if connsLength < 1 {
 		return nil, errors.New("No sources found")
 	}
@@ -37,7 +37,7 @@ func openContextConnection(ctx context.Context, driverName, sources string, grou
 		}
 		constatus := true
 
-		//set the name
+		// set the name
 		name := ""
 		if i == 0 {
 			name = "master"
@@ -55,13 +55,13 @@ func openContextConnection(ctx context.Context, driverName, sources string, grou
 		db.activedb = append(db.activedb, i)
 	}
 
-	//set the default group name
+	// set the default group name
 	db.groupName = defaultGroupName
 	if groupName != "" {
 		db.groupName = groupName
 	}
 
-	//ping database to retrieve error
+	// ping database to retrieve error
 	err = db.PingContext(ctx)
 	return db, err
 }
@@ -71,7 +71,7 @@ func OpenWithContext(ctx context.Context, driver, sources string) (*DB, error) {
 	return openContextConnection(ctx, driver, sources, "")
 }
 
-//PingContext database
+// PingContext database
 func (db *DB) PingContext(ctx context.Context) error {
 	var err error
 
@@ -127,27 +127,27 @@ func (db *DB) PingContext(ctx context.Context) error {
 	return err
 }
 
-//SelectContext using slave db.
+// SelectContext using slave db.
 func (db *DB) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	return db.sqlxdb[db.slave()].SelectContext(ctx, dest, query, args...)
 }
 
-//SelectMasterContext using master db.
+// SelectMasterContext using master db.
 func (db *DB) SelectMasterContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	return db.sqlxdb[0].SelectContext(ctx, dest, query, args...)
 }
 
-//GetContext using slave.
+// GetContext using slave.
 func (db *DB) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	return db.sqlxdb[db.slave()].GetContext(ctx, dest, query, args...)
 }
 
-//GetMasterContext using master.
+// GetMasterContext using master.
 func (db *DB) GetMasterContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
 	return db.sqlxdb[0].GetContext(ctx, dest, query, args...)
 }
 
-//PrepareContext return sql stmt
+// PrepareContext return sql stmt
 func (db *DB) PrepareContext(ctx context.Context, query string) (Stmt, error) {
 	var err error
 	stmt := Stmt{}
@@ -165,7 +165,7 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (Stmt, error) {
 	return stmt, nil
 }
 
-//PreparexContext sqlx stmt
+// PreparexContext sqlx stmt
 func (db *DB) PreparexContext(ctx context.Context, query string) (*Stmtx, error) {
 	var err error
 	stmts := make([]*sqlx.Stmt, len(db.sqlxdb))
@@ -187,13 +187,13 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{
 	return r, err
 }
 
-//QueryRowContext queries the database and returns an *sqlx.Row.
+// QueryRowContext queries the database and returns an *sqlx.Row.
 func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
 	rows := db.sqlxdb[db.slave()].QueryRowContext(ctx, query, args...)
 	return rows
 }
 
-//QueryxContext queries the database and returns an *sqlx.Rows.
+// QueryxContext queries the database and returns an *sqlx.Rows.
 func (db *DB) QueryxContext(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error) {
 	r, err := db.sqlxdb[db.slave()].QueryxContext(ctx, query, args...)
 	return r, err
@@ -205,7 +205,7 @@ func (db *DB) QueryRowxContext(ctx context.Context, query string, args ...interf
 	return rows
 }
 
-//ExecContext using master db
+// ExecContext using master db
 func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	return db.sqlxdb[0].ExecContext(ctx, query, args...)
 }
@@ -215,37 +215,37 @@ func (db *DB) MustExecContext(ctx context.Context, query string, args ...interfa
 	return db.sqlxdb[0].MustExecContext(ctx, query, args...)
 }
 
-//ExecContext will always go to production
+// ExecContext will always go to production
 func (st *Stmtx) ExecContext(ctx context.Context, args ...interface{}) (sql.Result, error) {
 	return st.stmts[0].ExecContext(ctx, args...)
 }
 
-//QueryContext will always go to slave
+// QueryContext will always go to slave
 func (st *Stmtx) QueryContext(ctx context.Context, args ...interface{}) (*sql.Rows, error) {
 	return st.stmts[st.db.slave()].QueryContext(ctx, args...)
 }
 
-//QueryMasterContext will use master db
+// QueryMasterContext will use master db
 func (st *Stmtx) QueryMasterContext(ctx context.Context, args ...interface{}) (*sql.Rows, error) {
 	return st.stmts[0].QueryContext(ctx, args...)
 }
 
-//QueryRowContext will always go to slave
+// QueryRowContext will always go to slave
 func (st *Stmtx) QueryRowContext(ctx context.Context, args ...interface{}) *sql.Row {
 	return st.stmts[st.db.slave()].QueryRowContext(ctx, args...)
 }
 
-//QueryRowMasterContext will use master db
+// QueryRowMasterContext will use master db
 func (st *Stmtx) QueryRowMasterContext(ctx context.Context, args ...interface{}) *sql.Row {
 	return st.stmts[0].QueryRowContext(ctx, args...)
 }
 
-//MustExecContext using master database
+// MustExecContext using master database
 func (st *Stmtx) MustExecContext(ctx context.Context, args ...interface{}) sql.Result {
 	return st.stmts[0].MustExecContext(ctx, args...)
 }
 
-//QueryxContext will always go to slave
+// QueryxContext will always go to slave
 func (st *Stmtx) QueryxContext(ctx context.Context, args ...interface{}) (*sqlx.Rows, error) {
 	return st.stmts[st.db.slave()].QueryxContext(ctx, args...)
 }
