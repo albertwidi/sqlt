@@ -492,8 +492,8 @@ func (st *Stmtx) SelectMaster(dest interface{}, args ...interface{}) error {
 
 // slave
 func (db *DB) slave() int {
-	defer dbLengthMutex.Unlock()
 	dbLengthMutex.Lock()
+	defer dbLengthMutex.Unlock()
 	if db.length <= 1 {
 		return 0
 	}

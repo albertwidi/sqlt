@@ -111,7 +111,7 @@ if err != nil {
 db.DoHeartBeat()
 ```
 
-Don't forget to stop the heartbeat when your application stop, because it(goroutines) will most likely leak if you forgot to close it.
+Don't forget to stop the heartbeat when your application stop, because it(goroutine) will most likely leak if you forgot to close it.
 
 ```go
 db.StopBeat()
