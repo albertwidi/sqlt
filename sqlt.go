@@ -3,6 +3,7 @@ package sqlt
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -501,4 +502,33 @@ func (db *DB) slave() int {
 	dbLengthMutex.Unlock()
 	active := db.activedb[slave]
 	return active
+}
+
+//InitMocking initialize the dbconnection mocking
+func InitMocking(dbConn *sql.DB, slaveAmount int) *DB {
+
+	db := &DB{
+		sqlxdb: make([]*sqlx.DB, slaveAmount+1),
+		stats:  make([]DbStatus, slaveAmount+1),
+	}
+
+	for i := 0; i <= slaveAmount; i++ {
+		db.sqlxdb[i] = sqlx.NewDb(dbConn, "postgres")
+		name := fmt.Sprintf("slave-%d", i)
+		if i == 0 {
+			name = "master"
+		}
+
+		db.stats[i] = DbStatus{
+			Name:       name,
+			Connected:  true,
+			LastActive: time.Now().String(),
+		}
+		db.activedb = append(db.activedb, i)
+	}
+
+	db.driverName = "postgres"
+	db.groupName = "sqlt-open"
+	db.length = len(db.sqlxdb)
+	return db
 }
