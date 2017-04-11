@@ -1,6 +1,6 @@
 [![GoDoc](https://godoc.org/github.com/albert-widi/sqlt?status.svg)](https://godoc.org/github.com/albert-widi/sqlt)
 
-#sqlt
+# sqlt
 
 Sqlt is a wrapper package for `jmoiron/sqlx`
 
@@ -109,6 +109,12 @@ if err != nil {
 
 //this will automatically ping the database and watch the connection
 db.DoHeartBeat()
+```
+
+Don't forget to stop the heartbeat when your application stop, because it(goroutines) will most likely leak if you forgot to close it.
+
+```go
+db.StopBeat()
 ```
 
 Database status
