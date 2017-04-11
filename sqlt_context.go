@@ -279,3 +279,13 @@ func (st *Stmtx) SelectContext(ctx context.Context, dest interface{}, args ...in
 func (st *Stmtx) SelectMasterContext(ctx context.Context, dest interface{}, args ...interface{}) error {
 	return st.stmts[0].SelectContext(ctx, dest, args...)
 }
+
+// BeginTx return sql.Tx
+func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
+	return db.Master().BeginTx(ctx, opts)
+}
+
+// BeginTxx return sqlx.Tx
+func (db *DB) BeginTxx(ctx context.Context, opts *sql.TxOptions) (*sqlx.Tx, error) {
+	return db.Master().BeginTxx(ctx, opts)
+}
