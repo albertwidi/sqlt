@@ -164,7 +164,13 @@ func (db *DB) Ping() error {
 	var err error
 
 	if !db.heartBeat {
-		return db.Ping()
+		for _, val := range db.sqlxdb {
+			err = val.Ping()
+			if err != nil {
+				return err
+			}
+		}
+		return err
 	}
 
 	for i := 0; i < len(db.activedb); i++ {
