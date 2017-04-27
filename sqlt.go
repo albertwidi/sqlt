@@ -500,12 +500,12 @@ func (st *Stmtx) SelectMaster(dest interface{}, args ...interface{}) error {
 // slave
 func (db *DB) slave() int {
 	dbLengthMutex.Lock()
+	defer dbLengthMutex.Unlock()
 	if db.length <= 1 {
 		return 0
 	}
 
 	slave := int(1 + (atomic.AddUint64(&db.count, 1) % uint64(db.length-1)))
-	dbLengthMutex.Unlock()
 	active := db.activedb[slave]
 	return active
 }
