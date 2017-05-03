@@ -1,11 +1,10 @@
 package sqlt
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -53,59 +52,11 @@ const defaultGroupName = "sqlt_open"
 var dbLengthMutex = &sync.Mutex{}
 
 func openConnection(driverName, sources string, groupName string) (*DB, error) {
-	var err error
-
-	conns := strings.Split(sources, ";")
-	connsLength := len(conns)
-
-	// check if no source is available
-	if connsLength < 1 {
-		return nil, errors.New("No sources found")
+	db, err := open(context.Background(), driverName, sources, groupName)
+	if err != nil {
+		return nil, err
 	}
-
-	db := &DB{
-		sqlxdb: make([]*sqlx.DB, connsLength),
-		stats:  make([]DbStatus, connsLength),
-	}
-	db.length = connsLength
-	db.driverName = driverName
-
-	for i := range conns {
-		db.sqlxdb[i], err = sqlx.Open(driverName, conns[i])
-		if err != nil {
-			db.inactivedb = append(db.inactivedb, i)
-			return nil, err
-		}
-
-		constatus := true
-
-		// set the name
-		name := ""
-		if i == 0 {
-			name = "master"
-		} else {
-			name = "slave-" + strconv.Itoa(i)
-		}
-
-		status := DbStatus{
-			Name:       name,
-			Connected:  constatus,
-			LastActive: time.Now().String(),
-		}
-
-		db.stats[i] = status
-		db.activedb = append(db.activedb, i)
-	}
-
-	// set the default group name
-	db.groupName = defaultGroupName
-	if groupName != "" {
-		db.groupName = groupName
-	}
-
-	// ping database to retrieve error
-	err = db.Ping()
-	return db, err
+	return db, db.Ping()
 }
 
 // Open connection to database

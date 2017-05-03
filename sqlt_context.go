@@ -11,7 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func openContextConnection(ctx context.Context, driverName, sources string, groupName string) (*DB, error) {
+func open(ctx context.Context, driverName, sources string, groupName string) (*DB, error) {
 	var err error
 
 	conns := strings.Split(sources, ";")
@@ -60,10 +60,16 @@ func openContextConnection(ctx context.Context, driverName, sources string, grou
 	if groupName != "" {
 		db.groupName = groupName
 	}
-
-	// ping database to retrieve error
-	err = db.PingContext(ctx)
 	return db, err
+}
+
+func openContextConnection(ctx context.Context, driverName, sources string, groupName string) (*DB, error) {
+	// ping database to retrieve error
+	db, err := open(ctx, driverName, sources, groupName)
+	if err != nil {
+		return nil, err
+	}
+	return db, db.PingContext(ctx)
 }
 
 // OpenWithContext opening connection with context
