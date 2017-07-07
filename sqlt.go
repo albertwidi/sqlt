@@ -173,16 +173,16 @@ func (db *DB) Ping() error {
 }
 
 // Prepare return sql stmt
-func (db *DB) Prepare(query string) (Stmt, error) {
+func (db *DB) Prepare(query string) (*Stmt, error) {
 	var err error
-	stmt := Stmt{}
+	stmt := new(Stmt)
 	stmts := make([]*sql.Stmt, len(db.sqlxdb))
 
 	for i := range db.sqlxdb {
 		stmts[i], err = db.sqlxdb[i].Prepare(query)
 
 		if err != nil {
-			return stmt, err
+			return nil, err
 		}
 	}
 	stmt.db = db
