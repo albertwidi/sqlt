@@ -160,16 +160,16 @@ func (db *DB) GetMasterContext(ctx context.Context, dest interface{}, query stri
 }
 
 // PrepareContext return sql stmt
-func (db *DB) PrepareContext(ctx context.Context, query string) (Stmt, error) {
+func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var err error
-	stmt := Stmt{}
+	stmt := new(Stmt)
 	stmts := make([]*sql.Stmt, len(db.sqlxdb))
 
 	for i := range db.sqlxdb {
 		stmts[i], err = db.sqlxdb[i].PrepareContext(ctx, query)
 
 		if err != nil {
-			return stmt, err
+			return nil, err
 		}
 	}
 	stmt.db = db
