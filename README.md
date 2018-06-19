@@ -30,7 +30,7 @@ db, err := sqlt.Open("postgres", databaseCon)
 Query Example:
 
 ```go
-row := db.QuerRowy(query, args)
+row := db.QueryRow(query, args)
 ```
 
 ```go
