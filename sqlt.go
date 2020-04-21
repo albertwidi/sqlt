@@ -321,6 +321,25 @@ func (db *DB) RebindMaster(query string) string {
 	return db.sqlxdb[0].Rebind(query)
 }
 
+// Close closes all database connections
+func (db *DB) Close() error {
+	for _, val := range db.sqlxdb {
+		err := val.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SetMaxIdleConns sets the maximum number of connections in the idle
+// connection pool for all connections
+func (db *DB) SetMaxIdleConns(n int) {
+	for _, val := range db.sqlxdb {
+		val.SetMaxIdleConns(n)
+	}
+}
+
 // Stmt implement sql stmt
 type Stmt struct {
 	db    *DB
