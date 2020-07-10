@@ -45,7 +45,7 @@ err := db.Select(&struct, query, args)
 err := db.Get(&struct, query, args)
 ```
 
-`preapre` and `preparex` for `sql` and `sqlx` are supported
+`prepare` and `preparex` for `sql` and `sqlx` are supported
 
 use `preparex` to enable `ScanStruct`
 
